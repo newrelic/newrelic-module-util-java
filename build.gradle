@@ -10,7 +10,6 @@ buildscript {
 plugins {
     id "java-library"
     id "maven-publish"
-    id "com.jfrog.artifactory" version "4.15.1"
 }
 
 version = "2.0-SNAPSHOT"
@@ -66,28 +65,6 @@ jar {
     )
 }
 
-artifactory {
-    contextUrl = 'https://pdx-artifacts.pdx.vm.datanerd.us'
-
-    resolve {
-        repoKey = 'java-agent-team'
-    }
-
-    publish {
-        repository {
-            repoKey = repoKey // from gradle.properties
-            username = System.getenv('ARTIFACTORY_USERNAME')
-            password = System.getenv('ARTIFACTORY_PASSWORD')
-        }
-        defaults {
-            publications('mavenJava')
-            publishBuildInfo = false
-            publishArtifacts = true
-            publishPom = true
-            publishIvy = true
-        }
-    }
-}
 publishing {
     publications {
         mavenJava(MavenPublication) {
