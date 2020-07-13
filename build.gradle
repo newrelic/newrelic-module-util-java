@@ -46,6 +46,7 @@ dependencies {
 }
 
 jar {
+    from ("LICENSE")
     // Gradle requires manual construction of the paths for MRJars.
     // See JEP-238 for more information: https://openjdk.java.net/jeps/238
     into('META-INF/versions/9') {
