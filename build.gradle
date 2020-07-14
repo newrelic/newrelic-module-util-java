@@ -1,6 +1,8 @@
 plugins {
     id "java-library"
     id "maven-publish"
+    id "signing"
+
 }
 
 version = "2.0-SNAPSHOT"
@@ -61,6 +63,38 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
+            pom {
+                name = project.name
+                description = "Multi-release jar for bootstrapping the Java Agent"
+                url = "https://github.com/newrelic/newrelic-module-util-java"
+                licenses {
+                    license {
+                        name = "The Apache License, Version 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                        distribution = "repo"
+                    }
+                }
+                developers {
+                    developer {
+                        id = "newrelic"
+                        name = "New Relic"
+                        email = "opensource@newrelic.com"
+                    }
+                }
+                scm {
+                    url = "git@github.com:newrelic/newrelic-module-util-java.git"
+                    connection = "scm:git@github.com:newrelic/newrelic-module-util-java.git"
+                }
+            }
         }
+
     }
+}
+
+signing {
+//    def signingKeyId = findProperty("signingKeyId")
+//    def signingKey = findProperty("signingKey")
+//    def signingPassword = findProperty("signingPassword")
+//    useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+    sign publishing.publications["mavenJava"]
 }
