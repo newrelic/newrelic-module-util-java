@@ -9,7 +9,7 @@ import java.lang.instrument.Instrumentation;
 
 public class ModuleUtilImpl implements ModuleUtil {
     /**
-     * There is no need to modify "modules" in Java < 9 since they didn't exist,
+     * There is no need to modify "modules" in Java {@literal <} 9 since they didn't exist,
      * so this is a no-op.
      */
     @Override
