@@ -21,6 +21,11 @@ sourceSets {
     }
 }
 
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
 // The main sourceSet should be compiled at the lowest Java version that is supported by the agent.
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_7
