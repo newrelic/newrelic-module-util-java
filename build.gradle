@@ -19,11 +19,6 @@ sourceSets {
             srcDirs = ['src/java9/java']
         }
     }
-    java11 {
-        java {
-            srcDirs = ['src/java11/java']
-        }
-    }
 }
 
 java {
@@ -43,12 +38,6 @@ compileJava9Java {
     targetCompatibility = JavaVersion.VERSION_1_9
 }
 
-// Java 11
-compileJava11Java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-}
-
 // if you are running gradle with Java 9 or higher, then
 // we know that Java 9's "javac" command supports the --release flag,
 // which supports creating .class files for Java 6 and higher.
@@ -60,8 +49,6 @@ tasks.withType(JavaCompile) {
 dependencies {
     // This allows the java9 sourceSet to compile using classes from the main sourceSet.
     java9Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
-
-    java11Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
 
     // NOTE: This project is extracted into the final newrelic.jar, and only
     //  classes from com.newrelic.** are included. The classes have been written
@@ -75,10 +62,6 @@ jar {
     into('META-INF/versions/9') {
         from sourceSets.java9.output
     }
-    into('META-INF/versions/11') {
-        from sourceSets.java11.output
-    }
-
     manifest.attributes(
             'Multi-Release': 'true'
     )
