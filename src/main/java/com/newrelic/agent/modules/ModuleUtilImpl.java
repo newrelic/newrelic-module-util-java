@@ -13,7 +13,7 @@ public class ModuleUtilImpl implements ModuleUtil {
      * so this is a no-op.
      */
     @Override
-    public void redefineModules(Instrumentation inst, ClassLoader agentClassLoader) {
+    public void redefineJavaBaseModule(Instrumentation inst, ClassLoader agentClassLoader) {
         // no-op in Java < 9.
     }
 }
