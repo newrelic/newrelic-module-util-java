@@ -17,7 +17,7 @@ public class ModuleUtilImpl implements ModuleUtil {
      * can get past the module access controls.
      */
     @Override
-    public void redefineModules(Instrumentation inst, ClassLoader agentClassLoader) {
+    public void redefineJavaBaseModule(Instrumentation inst, ClassLoader agentClassLoader) {
         Module javaBaseModule = Object.class.getModule();
         Module agentModule = agentClassLoader.getUnnamedModule();
         Map<String, Set<Module>> extraOpensAndExports = new HashMap<>();

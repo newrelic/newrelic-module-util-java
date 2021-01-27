@@ -16,5 +16,5 @@ public interface ModuleUtil {
      * agent classes; it is this classloader's unnamed module that will have
      * access to the necessary packages.
      */
-    void redefineModules(Instrumentation inst, ClassLoader agentClassLoader);
+    void redefineJavaBaseModule(Instrumentation inst, ClassLoader agentClassLoader);
 }
