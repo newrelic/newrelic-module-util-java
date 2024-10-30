@@ -1,0 +1,92 @@
+name: Dependabot High/Critical Slack Notification
+
+on:
+  schedule:
+    - cron: '0 8 * *'
+  workflow_dispatch:
+
+jobs:
+  check-dependabot-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Load Cached Alerts
+        id: cache-alerts
+        uses: actions/cache@v4.1.2
+        with:
+          path: previous_alerts.json
+          key: dependabot-alerts
+
+      - name: Fetch Dependabot Alerts
+        uses: actions/github-script@v7.0.1
+        id: get-alerts
+        with:
+          script: |
+            const response = await github.request('GET /repos/{owner}/{repo}/dependabot/alerts', {
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            const highCriticalAlerts = response.data.filter(alert => 
+              (alert.security_advisory.severity === 'high' || alert.security_advisory.severity === 'critical');
+            );
+            return JSON.stringify(highCriticalAlerts);
+
+      - name: Save Alerts to File
+        id: save-alerts
+        run: echo "${{ steps.get-alerts.outputs.result }}" > alerts.json
+
+      - name: Check for New High/Critical Alerts
+        id: check-new-alerts
+        run: |
+          if [ -f "previous_alerts.json" ]; then
+            new_alerts=$(jq -n --slurpfile old previous_alerts.json --slurpfile new alerts.json '
+                $new - $old')
+            echo "::set-output name=new_alerts::$new_alerts"
+          else
+            echo "::set-output name=new_alerts::$(cat alerts.json)"
+          fi
+
+      - name: Send Test Message to Slack Channel
+        env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+            curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"Testing Slack Messaging for High/Critical Dependabot Vulnerability Notifications"}' \
+            $SLACK_WEBHOOK_URL
+
+      - name: Send Slack Notification for New Alerts
+        if: ${{ steps.check-new-alerts.outputs.new_alerts != '[]' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": ":rotating_light: *New High/Critical Dependabot Alert Detected!*", 
+              "attachments": [
+                {
+                  "color": "#ff0000",
+                  "title": "New Dependabot Vulnerability Alert",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}"
+                    },
+                    {
+                      "title": "New High/Critical Vulnerability Reported",
+                      "value": "See the Dependabot Alert: ${{ github.server_url }}/${{ github.repository }}/security/dependabot"
+                    }
+                  ]
+                }
+              ]
+            }
+
+      - name: Copy Current Alerts to Cache File
+        if: ${{ steps.check-new-alerts.outputs.new_alerts != '[]' }}
+        run: cp alerts.json previous_alerts.json
+
+      - name: Update Cache
+        if: ${{ steps.check-new-alerts.outputs.new_alerts != '[]' }}
+        uses: actions/cache@v4.1.2
+        with:
+          path: previous_alerts.json
+          key: dependabot-alerts
