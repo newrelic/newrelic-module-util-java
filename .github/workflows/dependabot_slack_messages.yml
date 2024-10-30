@@ -15,7 +15,7 @@ jobs:
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # pin@v4.1.2
         with:
           path: previous_alerts.json
-          key: dependabot-alerts
+          key: dependabot-alerts-${{ github.repository }}-${{ github.run_id }}
 
       - name: Fetch Dependabot Alerts
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # pin@v7.0.1
@@ -41,9 +41,9 @@ jobs:
           if [ -f "previous_alerts.json" ]; then
             new_alerts=$(jq -n --slurpfile old previous_alerts.json --slurpfile new alerts.json '
                 $new - $old')
-            echo "::set-output name=new_alerts::$new_alerts"
+            echo "new_alerts=$new_alerts" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=new_alerts::$(cat alerts.json)"
+            echo "new_alerts=$(cat alerts.json)" >> $GITHUB_OUTPUT
           fi
 
       - name: Send Test Message to Slack Channel
@@ -90,4 +90,4 @@ jobs:
         uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # pin@v4.1.2
         with:
           path: previous_alerts.json
-          key: dependabot-alerts
+          key: dependabot-alerts-${{ github.repository }}-${{ github.run_id }}
