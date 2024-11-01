@@ -85,7 +85,7 @@ jobs:
   # this job is responsible for sending Slack notifications for each new alert in the new_alerts output
   send-slack-notifications:
     needs: check-dependabot-alerts
-    if: ${{ steps.check-new-alerts.outputs.new_alerts != '[]'}}
+    if: ${{ needs.check-dependabot-alerts.outputs.new_alerts != '[]'}}
     runs-on: ubuntu-latest
     steps:
       # Send a Slack notification for each new alert in the new_alerts output
@@ -116,7 +116,7 @@ jobs:
   # this job is responsible for updating the cache with the new alerts
   update-alerts-cache:
     needs: [check-dependabot-alerts, send-slack-notifications]
-    if: ${{ steps.check-new-alerts.outputs.new_alerts != '[]' }}
+    if: ${{ needs.check-dependabot-alerts.outputs.new_alerts != '[]' }}
     runs-on: ubuntu-latest
     steps:
       # Copy the current alerts to previous_alerts.json
