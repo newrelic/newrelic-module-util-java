@@ -5,6 +5,10 @@ on:
     - cron: '0 8 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: read
+
 jobs:
   # this job is responsible for checking Dependabot alerts for high and critical vulnerabilities and comparing them to
   # the alerts from the previous run. It then saves the new alerts to the output.
