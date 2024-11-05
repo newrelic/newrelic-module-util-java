@@ -43,8 +43,8 @@ jobs:
             }));
 
             return JSON.stringify(recentAlerts);
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Save alerts to the alerts.json file
       - name: Save Alerts to File
