@@ -5,13 +5,14 @@ on:
     - cron: '0 8 * * *'
   workflow_dispatch:
 
+
 jobs:
   # this job is responsible for checking Dependabot alerts for high and critical vulnerabilities and comparing them to
   # the alerts from the previous run. It then saves the new alerts to the output.
   check-dependabot-alerts:
     runs-on: ubuntu-latest
     outputs:
-        new_alerts: ${{ steps.check-new-alerts.outputs.new_alerts }}
+      new_alerts: ${{ steps.check-new-alerts.outputs.new_alerts }}
     steps:
       # Fetch Dependabot alerts for high and critical vulnerabilities only
       - name: Fetch Dependabot Alerts
@@ -25,10 +26,10 @@ jobs:
               severity: 'high,critical',
               state: 'open'
             });
-            
+
             const now = new Date();
             const last24 = new Date(now - 24 * 60 * 60 * 1000);
-            
+
             const recentAlerts = response.data.filter(alert => {
               const createdAt = new Date(alert.created_at);
               return createdAt > last24;
@@ -37,7 +38,7 @@ jobs:
               severity: alert.security_advisory.severity,
               link: alert.html_url
             }));
-            
+
             return JSON.stringify(recentAlerts);
 
       # Save alerts to the alerts.json file
@@ -83,9 +84,8 @@ jobs:
                 }'
             )
 
-            echo "$payload" | slackapi/slack_github_action@v1.27.0 --token $SLACK_BOT_TOKEN
+            echo "$payload" | slackapi/slack_github_action@slackapi/slack-github-action@60a0d83039c74a4aee543508d2ffcb1c3799cdea --token $SLACK_BOT_TOKEN
           done
-
 
   # this job is responsible for sending Slack notifications for each new alert in the new_alerts output
   send-slack-notifications:
@@ -102,7 +102,7 @@ jobs:
             alert_number=$(echo "$alert" | jq -r '.number')
             alert_severity=$(echo "$alert" | jq -r '.severity')
             alert_link=$(echo "$alert" | jq -r '.link')
-          
+
             payload=$(
               jq -n \
                 --arg alert_number "$alert_number" \
@@ -121,6 +121,6 @@ jobs:
                   ]
                 }'
             )
-          
-            echo "$payload" | slackapi/slack_github_action@v1.27.0 --token $SLACK_BOT_TOKEN
+
+            echo "$payload" | slackapi/slack-github-action@60a0d83039c74a4aee543508d2ffcb1c3799cdea --token $SLACK_BOT_TOKEN
           done
