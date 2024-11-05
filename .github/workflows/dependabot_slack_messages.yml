@@ -29,12 +29,12 @@ jobs:
           script: |
             const response = await github.request('GET /repos/{owner}/{repo}/dependabot/alerts', {
               owner: context.repo.owner,
-              repo: context.repo.repo
-              severity: 'high,critical'
+              repo: context.repo.repo,
+              severity: 'high,critical',
               state: 'open'
             });
             
-            const highCriticalAlerts = response.data.filter(alert => ({
+            const highCriticalAlerts = response.data.map(alert => ({
               number: alert.number,
               severity: alert.security_advisory.severity,
               link: alert.html_url
@@ -61,62 +61,91 @@ jobs:
       - name: Check for New High/Critical Alerts
         id: check-new-alerts
         run: |
-          only_new_alerts=$(jq --argjson old "$old_alerts" --argjson new "$new_alerts" '$new - $old')
-          echo "new_alerts=$only_new_alerts" >> $GITHUB_OUTPUT
+          old_alerts = "[]"
+          if [ -f previous_alerts.json ]; then
+            old_alerts=$(cat previous_alerts.json)
+          fi
+          new_alerts=$(jq --argjson old "$old_alerts" --argjson new "$(cat alerts.json)" \
+            '($new | map(select(.number as $n | $old | index({number: $n}) | not)))')
+          echo "new_alerts=$new_alerts" >> $GITHUB_OUTPUT
 
       # !!! REMOVE AFTER TESTING (MANUALLY TRIGGERING WORKFLOW) !!!
       - name: Send Test Message to Slack Channel (Workflow Dispatch Only)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         run: |
-          payload=$(
-            jq -n \
-              --arg alert_text ":rotating_light: *TEST MESSAGE*" \
-              --arg alert_number "• *Alert Number:* test-1234" \
-              --arg alert_severity "• *Alert Severity:* high" \
-              --arg alert_link "• <https://github.com|View Alert>" \
+          for alert in $(echo '${{ needs.check-dependabot-alerts.outputs.new_alerts }}' | jq -c '.[]'); do
+            alert_number="test-1234"
+            alert_severity="High"
+            alert_link="https://github.com"
+
+            payload=$(
+              jq -n \
+                --arg alert_number "$alert_number" \
+                --arg alert_severity "$alert_severity" \
+                --arg alert_link "$alert_link" \
                 '{
-                  "text": "\($alert_text)\n\($alert_number)\n\($alert_severity)\n\($alert_link)"
+                  "text": ":rotating_light: *--Testing High/Critical Dependabot Alerts*",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "• *Alert Number:* \($alert_number)\n• *Severity:* \($alert_severity)\n• <\($alert_link)|*View Alert*>"
+                      }
+                    }
+                  ]
                 }'
-          )
-          echo "$payload" | slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 --webhook-url $SLACK_WEBHOOK_URL
+            )
+
+            echo "$payload" | slackapi/slack_github_action@v1.27.0 --token $SLACK_BOT_TOKEN
+          done
 
 
   # this job is responsible for sending Slack notifications for each new alert in the new_alerts output
   send-slack-notifications:
     needs: check-dependabot-alerts
-    if: ${{ steps.check-new-alerts.outputs.new_alerts != '[]'}}
+    if: ${{ needs.check-dependabot-alerts.outputs.new_alerts != '[]'}}
     runs-on: ubuntu-latest
     steps:
       # Send a Slack notification for each new alert in the new_alerts output
       - name: Send Slack Notification
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         run: |
-          for alert in $(echo '${{ needs.load-alerts.outputs.new_alerts }}' | jq -c '.[]'); do
-            alert_number=$(echo $alert | jq -r '.number')
-            alert_severity=$(echo $alert | jq -r '.severity')
-            alert_link=$(echo $alert | jq -r '.link')
+          for alert in $(echo '${{ needs.check-dependabot-alerts.outputs.new_alerts }}' | jq -c '.[]'); do
+            alert_number=$(echo "$alert" | jq -r '.number')
+            alert_severity=$(echo "$alert" | jq -r '.severity')
+            alert_link=$(echo "$alert" | jq -r '.link')
           
             payload=$(
               jq -n \
-                --arg alert_text ":rotating_light: *New High/Critical Dependabot Alert Reported*" \
-                --arg alert_number "• *Alert Number:* $alert_number" \
-                --arg alert_severity "• *Alert Severity:* $alert_severity" \
-                --arg alert_link "• <"$alert_link"|*View Alert*>" \
+                --arg alert_number "$alert_number" \
+                --arg alert_severity "$alert_severity" \
+                --arg alert_link "$alert_link" \
                 '{
-                  "text": "\($alert_text)\n\($alert_number)\n\($alert_severity)\n\($alert_link)"
+                  "text": ":rotating_light: *New High/Critical Dependabot Alert Reported*",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "• *Alert Number:* \($alert_number)\n• *Severity:* \($alert_severity)\n• <\($alert_link)|*View Alert*>"
+                      }
+                    }
+                  ]
                 }'
             )
           
-            echo "$payload" | slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 --webhook-url $SLACK_WEBHOOK_URL
+            echo "$payload" | slackapi/slack_github_action@v1.27.0 --token $SLACK_BOT_TOKEN
           done
+
 
   # this job is responsible for updating the cache with the new alerts
   update-alerts-cache:
     needs: [check-dependabot-alerts, send-slack-notifications]
-    if: ${{ steps.check-new-alerts.outputs.new_alerts != '[]' }}
+    if: ${{ needs.check-dependabot-alerts.outputs.new_alerts != '[]' }}
     runs-on: ubuntu-latest
     steps:
       # Copy the current alerts to previous_alerts.json
