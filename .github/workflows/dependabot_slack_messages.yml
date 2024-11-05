@@ -58,7 +58,7 @@ jobs:
       - name: Send Test Message to Slack Channel (Workflow Dispatch Only)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_DEPENDABOT_TOKEN: ${{ secrets.SLACK_DEPENDABOT_TOKEN }}
         run: |
           for alert in $(echo '${{ steps.check-new-alerts.outputs.new_alerts }}' | jq -c '.[]'); do
             alert_number="test-1234"
@@ -96,7 +96,7 @@ jobs:
       # Send a Slack notification for each new alert in the new_alerts output
       - name: Send Slack Notification
         env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_DEPENDABOT_TOKEN: ${{ secrets.SLACK_DEPENDABOT_TOKEN }}
         run: |
           for alert in $(echo '${{ needs.check-dependabot-alerts.outputs.new_alerts }}' | jq -c '.[]'); do
             alert_number=$(echo "$alert" | jq -r '.number')
