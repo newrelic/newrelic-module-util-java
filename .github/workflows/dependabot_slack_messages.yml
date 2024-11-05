@@ -13,14 +13,6 @@ jobs:
     outputs:
         new_alerts: ${{ steps.check-new-alerts.outputs.new_alerts }}
     steps:
-      # Load cached alerts from the previous run (previous_alerts.json)
-      - name: Load Cached Alerts
-        id: cache-alerts
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # pin@v4.1.2
-        with:
-          path: previous_alerts.json
-          key: dependabot-alerts-${{ github.repository }}-${{ github.run_id }}
-
       # Fetch Dependabot alerts for high and critical vulnerabilities only
       - name: Fetch Dependabot Alerts
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # pin@v7.0.1
@@ -34,39 +26,31 @@ jobs:
               state: 'open'
             });
             
-            const highCriticalAlerts = response.data.map(alert => ({
+            const now = new Date();
+            const last24 = new Date(now - 24 * 60 * 60 * 1000);
+            
+            const recentAlerts = response.data.filter(alert => {
+              const createdAt = new Date(alert.created_at);
+              return createdAt > last24;
+            }).map(alert => ({
               number: alert.number,
               severity: alert.security_advisory.severity,
               link: alert.html_url
             }));
             
-            return JSON.stringify(highCriticalAlerts);
+            return JSON.stringify(recentAlerts);
 
       # Save alerts to the alerts.json file
       - name: Save Alerts to File
         id: save-alerts
         run: echo "${{ steps.get-alerts.outputs.result }}" > alerts.json
 
-      # Load previous alerts to old_alerts and load current alerts to new_alerts, so we can compare them
-      - name: Load Previous and Current Alerts
-        id: load-alerts
-        run: |
-          old_alerts=$(jq '.[]' previous_alerts.json)
-          new_alerts=$(jq '.[]' alerts.json)
-          echo "old_alerts=$old_alerts" >> $GITHUB_ENV
-          echo "new_alerts=$new_alerts" >> $GITHUB_ENV
-
       # compare the values in old_alerts and new_alerts to get only the new alerts and save them in only_new_alerts,
       # then save it to the output
       - name: Check for New High/Critical Alerts
         id: check-new-alerts
         run: |
-          old_alerts = "[]"
-          if [ -f previous_alerts.json ]; then
-            old_alerts=$(cat previous_alerts.json)
-          fi
-          new_alerts=$(jq --argjson old "$old_alerts" --argjson new "$(cat alerts.json)" \
-            '($new | map(select(.number as $n | $old | index({number: $n}) | not)))')
+          new_alerts=$(cat alerts.json)
           echo "new_alerts=$new_alerts" >> $GITHUB_OUTPUT
 
       # !!! REMOVE AFTER TESTING (MANUALLY TRIGGERING WORKFLOW) !!!
@@ -75,7 +59,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
         run: |
-          for alert in $(echo '${{ needs.check-dependabot-alerts.outputs.new_alerts }}' | jq -c '.[]'); do
+          for alert in $(echo '${{ steps.check-new-alerts.outputs.new_alerts }}' | jq -c '.[]'); do
             alert_number="test-1234"
             alert_severity="High"
             alert_link="https://github.com"
@@ -140,21 +124,3 @@ jobs:
           
             echo "$payload" | slackapi/slack_github_action@v1.27.0 --token $SLACK_BOT_TOKEN
           done
-
-
-  # this job is responsible for updating the cache with the new alerts
-  update-alerts-cache:
-    needs: [check-dependabot-alerts, send-slack-notifications]
-    if: ${{ needs.check-dependabot-alerts.outputs.new_alerts != '[]' }}
-    runs-on: ubuntu-latest
-    steps:
-      # Copy the current alerts to previous_alerts.json
-      - name: Copy Current Alerts to Cache File
-        run: cp alerts.json previous_alerts.json
-
-      # Update the cache with the new alerts
-      - name: Update Cache
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # pin@v4.1.2
-        with:
-          path: previous_alerts.json
-          key: dependabot-alerts-${{ github.repository }}-${{ github.run_id }}
