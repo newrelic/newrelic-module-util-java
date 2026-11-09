@@ -45,7 +45,9 @@ jobs:
       # Save alerts to the alerts.json file
       - name: Save Alerts to File
         id: save-alerts
-        run: echo "${{ steps.get-alerts.outputs.result }}" > alerts.json
+        env:
+          ALERTS_RESULT: ${{ steps.get-alerts.outputs.result }}
+        run: echo "$ALERTS_RESULT" > alerts.json
 
       # Load previous alerts to old_alerts and load current alerts to new_alerts, so we can compare them
       - name: Load Previous and Current Alerts
@@ -93,8 +95,9 @@ jobs:
       - name: Send Slack Notification
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          NEW_ALERTS: ${{ needs.load-alerts.outputs.new_alerts }}
         run: |
-          for alert in $(echo '${{ needs.load-alerts.outputs.new_alerts }}' | jq -c '.[]'); do
+          for alert in $(echo "$NEW_ALERTS" | jq -c '.[]'); do
             alert_number=$(echo $alert | jq -r '.number')
             alert_severity=$(echo $alert | jq -r '.severity')
             alert_link=$(echo $alert | jq -r '.link')
